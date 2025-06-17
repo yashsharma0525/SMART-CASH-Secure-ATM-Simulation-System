@@ -1,0 +1,286 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#define MAX_NOTES 200
+
+unsigned long amount = 1000;
+int choice, pin = 0, k = 0;
+char transaction = 'y';
+
+struct TransactionRecord
+{
+    char noteNumber[20];
+    int isDeposited;
+    int denomination;
+};
+
+struct TransactionRecord notes[MAX_NOTES];
+int noteCount = 0;
+
+// Function to validate denomination
+int isValidDenomination(unsigned long amount)
+{
+    if (amount % 100 != 0)
+        return 0;
+
+    // Check if amount can be formed with 100, 200, 500 notes
+    int remaining = amount;
+    int notes500 = remaining / 500;
+    remaining %= 500;
+    int notes200 = remaining / 200;
+    remaining %= 200;
+    int notes100 = remaining / 100;
+
+    return (notes500 * 500 + notes200 * 200 + notes100 * 100) == amount;
+}
+
+void generateNoteNumber(char *noteNumber)
+{
+    sprintf(noteNumber, "SN%05d", rand() % 90000 + 10000);
+}
+
+int isDispensedByATM(char *noteNumber)
+{
+    for (int i = 0; i < noteCount; i++)
+    {
+        if (strcmp(notes[i].noteNumber, noteNumber) == 0)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void storeNoteNumber(char *noteNumber, int isDeposit, int denomination)
+{
+    if (noteCount < MAX_NOTES)
+    {
+        strcpy(notes[noteCount].noteNumber, noteNumber);
+        notes[noteCount].isDeposited = isDeposit;
+        notes[noteCount].denomination = denomination;
+        noteCount++;
+    }
+}
+
+void generateNotesForTransaction(unsigned long amount, int isDeposit)
+{
+    printf("\n%s Rs %lu:\n", isDeposit ? "DEPOSITING" : "DISPENSING", amount);
+
+    int remaining = amount;
+    int notes500 = remaining / 500;
+    remaining %= 500;
+    int notes200 = remaining / 200;
+    remaining %= 200;
+    int notes100 = remaining / 100;
+
+    for (int i = 0; i < notes500; i++)
+    {
+        char noteNumber[20];
+        generateNoteNumber(noteNumber);
+        storeNoteNumber(noteNumber, isDeposit, 500);
+        printf("500 NOTE: %s\n", noteNumber);
+    }
+    for (int i = 0; i < notes200; i++)
+    {
+        char noteNumber[20];
+        generateNoteNumber(noteNumber);
+        storeNoteNumber(noteNumber, isDeposit, 200);
+        printf("200 NOTE: %s\n", noteNumber);
+    }
+    for (int i = 0; i < notes100; i++)
+    {
+        char noteNumber[20];
+        generateNoteNumber(noteNumber);
+        storeNoteNumber(noteNumber, isDeposit, 100);
+        printf("100 NOTE: %s\n", noteNumber);
+    }
+}
+
+int checkNote(int forDeposit)
+{
+    if (forDeposit)
+    {
+        return rand() % 10 < 8;
+    }
+    return 1;
+}
+
+void displayValidDenominations()
+{
+    printf("\nVALID DENOMINATIONS:\n");
+    printf("100 | 200 | 300 (100+200) | 400 (200+200) | 500 | etc.\n");
+    printf("Amount must be formable using 100, 200, and 500 notes\n");
+}
+
+int main()
+{
+    srand(time(NULL));
+
+    // PIN Verification
+    while (pin != 1520)
+    {
+        printf("ENTER YOUR SECRET PIN NUMBER: ");
+        if (scanf("%d", &pin) != 1)
+        {
+            printf("INVALID INPUT! PLEASE ENTER NUMERIC PIN\n");
+            while (getchar() != '\n')
+                ;
+            continue;
+        }
+        if (pin != 1520)
+            printf("PLEASE ENTER A VALID PASSWORD\n");
+    }
+
+    // Main Transaction Loop
+    do
+    {
+        printf("\n****** Welcome to ATM Service *******\n");
+        printf("1. Check Balance\n");
+        printf("2. Withdraw Cash\n");
+        printf("3. Deposit Cash\n");
+        printf("4. Report Torn Notes\n");
+        printf("5. Quit\n");
+        printf("\nEnter your choice: ");
+        if (scanf("%d", &choice) != 1)
+        {
+            printf("\nINVALID INPUT! PLEASE ENTER A NUMBER.\n");
+            while (getchar() != '\n')
+                ;
+            continue;
+        }
+
+        switch (choice)
+        {
+        case 1:
+            printf("\nYOUR BALANCE: Rs %lu\n", amount);
+            break;
+
+        case 2:
+        {
+            unsigned long withdraw;
+            printf("\nENTER THE AMOUNT TO WITHDRAW: ");
+            if (scanf("%lu", &withdraw) != 1)
+            {
+                printf("\nINVALID INPUT! TRANSACTION CANCELLED.\n");
+                while (getchar() != '\n')
+                    ;
+                break;
+            }
+            if (!isValidDenomination(withdraw))
+            {
+                displayValidDenominations();
+                printf("\nINVALID AMOUNT! PLEASE ENTER VALID DENOMINATION\n");
+            }
+            else if (withdraw > (amount - 500))
+            {
+                printf("\nINSUFFICIENT BALANCE\n");
+            }
+            else
+            {
+                if (checkNote(0))
+                {
+                    generateNotesForTransaction(withdraw, 0);
+                    amount -= withdraw;
+                    printf("\nPLEASE COLLECT YOUR CASH");
+                    printf("\nCURRENT BALANCE: Rs %lu\n", amount);
+                }
+                else
+                {
+                    printf("\nERROR: Transaction cancelled.\n");
+                }
+            }
+            break;
+        }
+
+        case 3:
+        {
+            unsigned long deposit;
+            printf("\nENTER THE AMOUNT TO DEPOSIT: ");
+            if (scanf("%lu", &deposit) != 1)
+            {
+                printf("\nINVALID INPUT! TRANSACTION CANCELLED.\n");
+                while (getchar() != '\n')
+                    ;
+                break;
+            }
+            if (!isValidDenomination(deposit))
+            {
+                displayValidDenominations();
+                printf("\nINVALID AMOUNT! PLEASE ENTER VALID DENOMINATION\n");
+                break;
+            }
+            if (checkNote(1))
+            {
+                generateNotesForTransaction(deposit, 1);
+                amount += deposit;
+                printf("\nDEPOSIT SUCCESSFUL");
+                printf("\nCURRENT BALANCE: Rs %lu\n", amount);
+            }
+            else
+            {
+                printf("\nERROR: Invalid notes detected. Deposit cancelled.\n");
+            }
+            break;
+        }
+
+        case 4:
+        {
+            char reportedNote[20];
+            printf("\nENTER THE SERIAL NUMBER OF THE TORN NOTE (format SNXXXXX): ");
+            scanf("%19s", reportedNote);
+
+            int found = 0;
+            for (int i = 0; i < noteCount; i++)
+            {
+                if (strcmp(notes[i].noteNumber, reportedNote) == 0)
+                {
+                    found = 1;
+                    printf("\nNOTE VERIFIED (%s %d Rs NOTE)",
+                           notes[i].isDeposited ? "DEPOSITED" : "WITHDRAWN",
+                           notes[i].denomination);
+                    printf("\nREPLACEMENT NOTE GENERATED:\n");
+
+                    char newNote[20];
+                    generateNoteNumber(newNote);
+                    storeNoteNumber(newNote, 0, notes[i].denomination);
+                    printf("%d Rs NOTE: %s\n", notes[i].denomination, newNote);
+
+                    // Credit amount for deposited torn notes
+                    if (notes[i].isDeposited)
+                    {
+                        amount += notes[i].denomination;
+                        printf("\n%d Rs CREDITED TO YOUR ACCOUNT\n", notes[i].denomination);
+                    }
+                    break;
+                }
+            }
+            if (!found)
+            {
+                printf("\nERROR: Invalid serial number or note not issued by this ATM.\n");
+            }
+            break;
+        }
+
+        case 5:
+            k = 1;
+            break;
+
+        default:
+            printf("\nINVALID CHOICE\n");
+        }
+
+        if (k != 1)
+        {
+            printf("\nANOTHER TRANSACTION? (y/n): ");
+            getchar();
+            scanf("%c", &transaction);
+            if (transaction == 'n' || transaction == 'N')
+                k = 1;
+        }
+    } while (k != 1);
+
+    printf("\nTHANK YOU FOR USING OUR ATM SERVICE\n");
+    return 0;
+}
